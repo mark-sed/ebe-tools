@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 """
 Script for plotting Ebe's analytics (-a) output.
-
 """
 __author__ = "Marek Sedlacek"
-__date__ = "September 2021"
+__date__ = "December 2021"
 
 import matplotlib.pyplot as plt
 import csv
@@ -42,6 +41,7 @@ if __name__ == "__main__":
         plt.plot(x, y, label='Evolution {}'.format(e_num))
         e_num += 1
 
+    # Parse args to graph
     if len(sys.argv) >= 4:
         plt.xlabel(sys.argv[3])
     if len(sys.argv) >= 5:
