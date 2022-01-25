@@ -5,12 +5,16 @@ This script has to be run as a sudo.
 """
 __author__ = "Marek Sedlacek"
 __date__ = "January 2022"
+__version__ = "1.0.0"
 
+import platform
 import sys
 import subprocess
 import re
 import os
 import json
+import psutil
+import platform
 from datetime import datetime
 
 # Regex for matching whole number or float percentage
@@ -72,6 +76,27 @@ def get_ebe_version(ebe):
     result_stdout = result.communicate()[0].decode("utf-8")
     match = RE_EBE_VERSION.search(result_stdout)
     return match.groups()[0]
+
+def get_ebe_info(ebe):
+    """
+    Extracts information about used Ebe
+    :return Ebe information as a dict
+    """
+    return {"version": get_ebe_version(ebe)}
+
+def get_platform_info():
+    """
+    Extracts information about current platform
+    :return Platform information as a dictionary
+    """
+    return  {
+                "memory": {"size": psutil.virtual_memory().total},
+                "cpu":    {"freq_min": psutil.cpu_freq().min, 
+                           "freq_max": psutil.cpu_freq().max,
+                           "cores": psutil.cpu_count()
+                          },
+                "os":     platform.platform()
+            }
 
 def measure_ebec(ebe, f_in, f_out, args):
     """
@@ -264,6 +289,7 @@ def run_ebei_tests(ebe, ebei_dir, iterations):
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "-h":
         print_help()
+    # Start timer
     _start_time = datetime.now()
 
     _ebec_dir = "./ebec"
@@ -275,45 +301,45 @@ if __name__ == "__main__":
     werror = True
     _iterations = 10
 
-    i = 1
-    while i < len(sys.argv):
-        if sys.argv[i] == "-ebe":
-            if len(sys.argv) < i+1:
+    _i = 1
+    while _i < len(sys.argv):
+        if sys.argv[_i] == "-ebe":
+            if len(sys.argv) < _i+1:
                 error("Missing value for -ebe option")
-            _ebe_command = sys.argv[i+1]
-            i += 1
-        elif sys.argv[i] == "-ebec":
-            if len(sys.argv) < i+1:
+            _ebe_command = sys.argv[_i+1]
+            _i += 1
+        elif sys.argv[_i] == "-ebec":
+            if len(sys.argv) < _i+1:
                 error("Missing value for -ebec option")
-            _ebec_dir = sys.argv[i+1]
-            i += 1
-        elif sys.argv[i] == "-ebei":
-            if len(sys.argv) < i+1:
+            _ebec_dir = sys.argv[_i+1]
+            _i += 1
+        elif sys.argv[_i] == "-ebei":
+            if len(sys.argv) < _i+1:
                 error("Missing value for -ebei option")
-            _ebei_dir = sys.argv[i+1]
-            i += 1
-        elif sys.argv[i] == "-iter":
-            if len(sys.argv) < i+1:
+            _ebei_dir = sys.argv[_i+1]
+            _i += 1
+        elif sys.argv[_i] == "-iter":
+            if len(sys.argv) < _i+1:
                 error("Missing value for -iter option")
             try:
-                _iterations = int(sys.argv[i+1])
+                _iterations = int(sys.argv[_i+1])
             except Exception:
-                error("Incorrect value '{}' for -iter".format(sys.argv[i+1]))
-            i += 1
-        elif sys.argv[i] == "-o":
-            if len(sys.argv) < i+1:
+                error("Incorrect value '{}' for -iter".format(sys.argv[_i+1]))
+            _i += 1
+        elif sys.argv[_i] == "-o":
+            if len(sys.argv) < _i+1:
                 error("Missing value for -o option")
-            _json_dir = sys.argv[i+1]
-            i += 1
-        elif sys.argv[i] == "-i":
+            _json_dir = sys.argv[_i+1]
+            _i += 1
+        elif sys.argv[_i] == "-i":
             _only_i = True
-        elif sys.argv[i] == "-c":
+        elif sys.argv[_i] == "-c":
             _only_c = True
-        elif sys.argv[i] == "-Werror":
+        elif sys.argv[_i] == "-Werror":
             werror = True
         else:
-            error("Unknown option '{}'".format(sys.argv[i]))
-        i += 1
+            error("Unknown option '{}'".format(sys.argv[_i]))
+        _i += 1
 
     log("Using:\n\t-ebec: {}\n\t-ebei: {}\n\t-ebe: {}\n\t-o: {}\n\t-iter: {}\n\t-i: {}\n\t-c: {}\n\t-Werror: {}".format(
           _ebec_dir, _ebei_dir, _ebe_command, _json_dir, _iterations, _only_i, _only_c, werror))
@@ -346,10 +372,18 @@ if __name__ == "__main__":
     if not _only_c:
         _ebei_results = run_ebei_tests(_ebe_command, _ebei_dir, _iterations)
 
-    _results = {"ebec": _ebec_results, "ebei": _ebei_results}
+    # Save results
+    _results = {"benchmark": {"version": __version__},
+                "platform": get_platform_info(),
+                "ebe": get_ebe_info(_ebe_command),
+                "results": {
+                    "ebec": _ebec_results, 
+                    "ebei": _ebei_results
+                    }
+               }
     _json_name = datetime.now().strftime("%Y-%m-%d_%H-%M")+"_Ebe"+get_ebe_version(_ebe_command)+"_benchmarks.json"
     with open(_json_dir+"/"+_json_name, "w") as json_f:
-        json.dump(_results, json_f)
+        json.dump(_results, json_f, indent=2)
 
     _run_time = datetime.now() - _start_time
     log("Benchmarks finished ({})".format(str(_run_time)[:str(_run_time).index('.')]))
