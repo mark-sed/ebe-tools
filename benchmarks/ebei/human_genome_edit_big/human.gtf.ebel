@@ -1,0 +1,14 @@
+PASS Words
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  PASS number Expression
+    SUB $0, $0, 153350000
+    RETURN  NOP 
+  NOP 
+  PASS number Expression
+    SUB $0, $0, 153350000
+    RETURN  NOP 
