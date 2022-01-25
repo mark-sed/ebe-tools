@@ -10,9 +10,12 @@ import sys
 import subprocess
 import re
 import os
+import json
+from datetime import datetime
 
 # Regex for matching whole number or float percentage
 RE_PER_NUMBER = re.compile(r'([0-9]+.?[0-9]*)%')
+RE_EBE_VERSION = re.compile(r'Ebe ([0-9]+\.[0-9]+\.[0-9]+)')
 # Option to exit on warning
 werror = False
 
@@ -23,13 +26,14 @@ def print_help():
     print("""Usage: {} [opts]
     No arguments runs all benchmarks.
     This script requires sudo privileges.
-    -ebe <path>  Path to Ebe
-    -i           Run only interpreter benchmarks
-    -c           Run only compiler benchmarks
-    -ebec <path> Path to folder containing ebec tests
-    -ebei <path> Path to folder containing ebei tests
-    -iter <num>  Number of iteration to be done for each test
-    -Werror      Exits with error on warning
+    -ebe <path>  Path to Ebe.
+    -o           Path to a directory where to save results.
+    -i           Run only interpreter benchmarks.
+    -c           Run only compiler benchmarks.
+    -ebec <path> Path to folder containing ebec tests.
+    -ebei <path> Path to folder containing ebei tests.
+    -iter <num>  Number of iteration to be done for each test.
+    -Werror      Exits with error on warning.
     """.format(sys.argv[0]))
     exit(0)
 
@@ -41,6 +45,33 @@ def warning(msg, test):
     print("WARNING: "+test+": "+msg+".", file=sys.stderr)
     if werror:
         error("(Werror) Warning raised, exiting")
+
+def log(msg, test=None, test_number=None, test_amount=None):
+    """
+    Logs current benchmark status
+    :param msg Message to print
+    :param test Test name
+    :param test_number Test number
+    :param test_amount Amount of all tests
+    """
+    if test_number is not None and test_amount is not None:
+        print("TEST({}/{}): ".format(test_number, test_amount), end="", file=sys.stderr)
+    else:
+        print("INFO: ", end="", file=sys.stderr)
+    if test is not None:
+        print(test+": ", end="", file=sys.stderr)
+    print(msg, file=sys.stderr)
+
+def get_ebe_version(ebe):
+    """
+    Returns ebe's version
+    :return ebe's version number
+    """
+    result = subprocess.Popen([f"{ebe} --version"],
+                              shell=True, stdout=subprocess.PIPE)
+    result_stdout = result.communicate()[0].decode("utf-8")
+    match = RE_EBE_VERSION.search(result_stdout)
+    return match.groups()[0]
 
 def measure_ebec(ebe, f_in, f_out, args):
     """
@@ -139,6 +170,50 @@ def get_ebec_tests(dir_path):
             tests.append((item, in_file, out_file, extract_args(args_file)))
     return tests
 
+def get_ebei_tests(dir_path):
+    """
+    Walks directory extracting list of tuples of tests
+    :param dir_path Path to the folder containing ebei tests
+    :return List of tuples containing test_name, .ebel, list of .txt and args
+    """
+    tests = []
+    all_items = os.listdir(dir_path)
+    for item in all_items:
+        ebel_file = None
+        txt_files = []
+        args_file = None
+        incorrect = False
+        # Get only directories
+        if os.path.isdir(dir_path+"/"+item):
+            parent = dir_path+"/"+item
+            for i in os.listdir(parent):
+                f = parent+"/"+i
+                if len(f) > 5 and f[-5:] == ".ebel":
+                    if ebel_file is None:
+                        ebel_file = f
+                    else:
+                        warning("Multiple ebel files found", parent)
+                        incorrect = True
+                elif len(f) > 4 and f[-4:] == ".txt":
+                    txt_files.append(f)
+                elif len(f) > 5 and f[-5:] == ".args":
+                    if args_file is None:
+                        args_file = f
+                    else:
+                        warning("Multiple argument (.args) files for ebec found", parent)
+                        incorrect = True
+            if ebel_file is None:
+                warning("Missing ebel (.ebel) file", parent)
+                incorrect = True
+            if len(txt_files) == 0:
+                warning("Missing input files (.txt)", parent)
+                incorrect = True
+            if incorrect:
+                warning("Incorrect structure. Skipping test", parent)
+                continue
+            tests.append((item, ebel_file, txt_files, extract_args(args_file)))
+    return tests
+
 def run_ebec_tests(ebe, ebec_dir, iterations):
     """
     Benchmarks all ebec tests in ebe_dir
@@ -146,13 +221,40 @@ def run_ebec_tests(ebe, ebec_dir, iterations):
     :param ebec_dir Path to ebec tests
     """
     results = {}
-    for name, f_in, f_out, args in get_ebec_tests(ebec_dir):
+    tests = get_ebec_tests(ebec_dir)
+    log("Running {} ebec tests ({} iterations).".format(len(tests), iterations))
+    curr_num = 1
+    for name, f_in, f_out, args in tests:
         results[name] = {"times": [], "cpus": [], "precisions": []}
+        log("Started.", "ebec:"+name, curr_num, len(tests))
         for _ in range(iterations):
             mes = measure_ebec(ebe, f_in, f_out, args)
             results[name]["times"].append(mes[0])
             results[name]["cpus"].append(mes[1])
             results[name]["precisions"].append(mes[2])
+        log("Finished.", "ebec:"+name, curr_num, len(tests))
+        curr_num += 1
+    return results
+
+def run_ebei_tests(ebe, ebei_dir, iterations):
+    """
+    Benchmarks all ebei tests in ebe_dir
+    :param ebe Path to ebe
+    :param ebei_dir Path to ebei tests
+    """
+    results = {}
+    tests = get_ebei_tests(ebei_dir)
+    log("Running {} ebei tests ({} iterations).".format(len(tests), iterations))
+    curr_num = 1
+    for name, f_ebel, f_ins, args in tests:
+        results[name] = {"times": [], "cpus": []}
+        log("Started.", "ebei:"+name, curr_num, len(tests))
+        for _ in range(iterations):
+            mes = measure_ebei(ebe, f_ebel, f_ins, args)
+            results[name]["times"].append(mes[0])
+            results[name]["cpus"].append(mes[1])
+        log("Finished.", "ebei:"+name, curr_num, len(tests))
+        curr_num += 1
     return results
 
 
@@ -162,72 +264,92 @@ def run_ebec_tests(ebe, ebec_dir, iterations):
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "-h":
         print_help()
-    ebec_dir = "./ebec"
-    ebei_dir = "./ebei"
-    ebe_command = "ebe"
-    only_i = False
-    only_c = False
+    _start_time = datetime.now()
+
+    _ebec_dir = "./ebec"
+    _ebei_dir = "./ebei"
+    _ebe_command = "ebe"
+    _json_dir = "."
+    _only_i = False
+    _only_c = False
     werror = True
-    iterations = 5
+    _iterations = 10
 
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-ebe":
             if len(sys.argv) < i+1:
                 error("Missing value for -ebe option")
-            ebe_command = sys.argv[i+1]
+            _ebe_command = sys.argv[i+1]
             i += 1
         elif sys.argv[i] == "-ebec":
             if len(sys.argv) < i+1:
                 error("Missing value for -ebec option")
-            ebec_dir = sys.argv[i+1]
+            _ebec_dir = sys.argv[i+1]
             i += 1
         elif sys.argv[i] == "-ebei":
             if len(sys.argv) < i+1:
                 error("Missing value for -ebei option")
-            ebei_dir = sys.argv[i+1]
+            _ebei_dir = sys.argv[i+1]
             i += 1
         elif sys.argv[i] == "-iter":
             if len(sys.argv) < i+1:
                 error("Missing value for -iter option")
             try:
-                iterations = int(sys.argv[i+1])
+                _iterations = int(sys.argv[i+1])
             except Exception:
                 error("Incorrect value '{}' for -iter".format(sys.argv[i+1]))
             i += 1
+        elif sys.argv[i] == "-o":
+            if len(sys.argv) < i+1:
+                error("Missing value for -o option")
+            _json_dir = sys.argv[i+1]
+            i += 1
         elif sys.argv[i] == "-i":
-            only_i = True
+            _only_i = True
         elif sys.argv[i] == "-c":
-            only_c = True
+            _only_c = True
         elif sys.argv[i] == "-Werror":
             werror = True
         else:
             error("Unknown option '{}'".format(sys.argv[i]))
         i += 1
 
-    print("Using:\n\t-ebec: {}\n\t-ebei: {}\n\t-ebe: {}\n\t-iter: {}\n\t-i: {}\n\t-c: {}\n\t-Werror: {}\n\t".format(
-          ebec_dir, ebei_dir, ebe_command, iterations, only_i, only_c, werror))
+    log("Using:\n\t-ebec: {}\n\t-ebei: {}\n\t-ebe: {}\n\t-o: {}\n\t-iter: {}\n\t-i: {}\n\t-c: {}\n\t-Werror: {}".format(
+          _ebec_dir, _ebei_dir, _ebe_command, _json_dir, _iterations, _only_i, _only_c, werror))
 
-    ebec_dir = os.path.normpath(ebec_dir)
-    ebei_dir = os.path.normpath(ebei_dir)
+    _ebec_dir = os.path.normpath(_ebec_dir)
+    _ebei_dir = os.path.normpath(_ebei_dir)
+    _json_dir = os.path.normpath(_json_dir)
 
-    if only_i and only_c:
+    if _only_i and _only_c:
         error("Only -i or -c can be set, not both")
 
-    if not os.path.isdir(ebec_dir):
-        error("Ebec test directory '{}' does not exist or is not a directory".format(ebec_dir))
-    if not os.path.isdir(ebei_dir):
-        error("Ebei test directory '{}' does not exist or is not a directory".format(ebei_dir))
-    if not os.path.isfile(ebe_command):
+    if not os.path.isdir(_ebec_dir):
+        error("Ebec test directory '{}' does not exist or is not a directory".format(_ebec_dir))
+    if not os.path.isdir(_ebei_dir):
+        error("Ebei test directory '{}' does not exist or is not a directory".format(_ebei_dir))
+    if not os.path.isdir(_json_dir):
+        error("Output test directory '{}' does not exist or is not a directory".format(_json_dir))
+    if not os.path.isfile(_ebe_command):
         # Call ebe as a command
         try:
-            subprocess.call([ebe_command])
+            subprocess.call([_ebe_command])
         except FileNotFoundError:
-            error("Ebe cannot be found as a command nor binary under '{}'".format(ebe_command))
+            error("Ebe cannot be found as a command nor binary under '{}'".format(_ebe_command))
 
-    if not only_i:
-        ebec_results = run_ebec_tests(ebe_command, ebec_dir, iterations)
-        print(ebec_results)
+    _ebec_results = None
+    _ebei_results = None
+    # Running tests
+    if not _only_i:
+        _ebec_results = run_ebec_tests(_ebe_command, _ebec_dir, _iterations)
+    if not _only_c:
+        _ebei_results = run_ebei_tests(_ebe_command, _ebei_dir, _iterations)
 
-    #print(measure_ebec("../../ebe/build/ebe", "../../ebe/examples/ex2.in", "../../ebe/examples/ex2.output"))
-    #print(measure_ebei("../../ebe/build/ebe", "../../ebe/examples/ex2.ebel", ["../../ebe/examples/ex2.in"]))
+    _results = {"ebec": _ebec_results, "ebei": _ebei_results}
+    _json_name = datetime.now().strftime("%Y-%m-%d_%H-%M")+"_Ebe"+get_ebe_version(_ebe_command)+"_benchmarks.json"
+    with open(_json_dir+"/"+_json_name, "w") as json_f:
+        json.dump(_results, json_f)
+
+    _run_time = datetime.now() - _start_time
+    log("Benchmarks finished ({})".format(str(_run_time)[:str(_run_time).index('.')]))
