@@ -10,3 +10,7 @@ Contains scripts for working with analytics (`-a`) output from Ebe.
 
 This script can be used to plot (to display and to a file) `-a` output. To see more info on its usage run
 it with `-h` argument.
+
+## Benchmarks
+
+Contains Ebe benchmarks for measuring Ebe's performance.
