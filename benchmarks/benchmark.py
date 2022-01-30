@@ -254,9 +254,9 @@ def run_ebec_tests(ebe, ebec_dir, iterations):
         log("Started.", "ebec:"+name, curr_num, len(tests))
         for _ in range(iterations):
             mes = measure_ebec(ebe, f_in, f_out, args)
-            results[name]["times"].append(mes[0])
-            results[name]["cpus"].append(mes[1])
-            results[name]["precisions"].append(mes[2])
+            results[name]["times"].append(float(mes[0]))
+            results[name]["cpus"].append(int(mes[1]))
+            results[name]["precisions"].append(float(mes[2]))
         log("Finished.", "ebec:"+name, curr_num, len(tests))
         curr_num += 1
     return results
@@ -276,8 +276,8 @@ def run_ebei_tests(ebe, ebei_dir, iterations):
         log("Started.", "ebei:"+name, curr_num, len(tests))
         for _ in range(iterations):
             mes = measure_ebei(ebe, f_ebel, f_ins, args)
-            results[name]["times"].append(mes[0])
-            results[name]["cpus"].append(mes[1])
+            results[name]["times"].append(float(mes[0]))
+            results[name]["cpus"].append(int(mes[1]))
         log("Finished.", "ebei:"+name, curr_num, len(tests))
         curr_num += 1
     return results
@@ -373,7 +373,10 @@ if __name__ == "__main__":
         _ebei_results = run_ebei_tests(_ebe_command, _ebei_dir, _iterations)
 
     # Save results
-    _results = {"benchmark": {"version": __version__},
+    _results = {"benchmark": {
+                    "version": __version__,
+                    "time:": int(datetime.now().timestamp())
+                    },
                 "platform": get_platform_info(),
                 "ebe": get_ebe_info(_ebe_command),
                 "results": {
