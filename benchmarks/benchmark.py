@@ -37,6 +37,7 @@ def print_help():
     -ebec <path> Path to folder containing ebec tests.
     -ebei <path> Path to folder containing ebei tests.
     -iter <num>  Number of iteration to be done for each test.
+    -args "args" Extra compilation arguments.
     -Werror      Exits with error on warning.
     """.format(sys.argv[0]))
     exit(0)
@@ -84,6 +85,17 @@ def get_ebe_info(ebe):
     """
     return {"version": get_ebe_version(ebe)}
 
+def get_cpu_model():
+    """
+    Attempts to get cpu model name
+    :return Model name or empty string
+    """
+    
+    result = subprocess.Popen(["lscpu | sed -nr '/Model name/ s/.*:\s*(.*) @ .*/\\1/p'"],
+                              shell=True, stdout=subprocess.PIPE)
+    result_stdout = result.communicate()[0].decode("utf-8")
+    return result_stdout.rstrip()
+
 def get_platform_info():
     """
     Extracts information about current platform
@@ -91,14 +103,15 @@ def get_platform_info():
     """
     return  {
                 "memory": {"size": psutil.virtual_memory().total},
-                "cpu":    {"freq_min": psutil.cpu_freq().min, 
+                "cpu":    {"model": get_cpu_model(),
+                           "freq_min": psutil.cpu_freq().min, 
                            "freq_max": psutil.cpu_freq().max,
                            "cores": psutil.cpu_count()
                           },
                 "os":     platform.platform()
             }
 
-def measure_ebec(ebe, f_in, f_out, args):
+def measure_ebec(ebe, f_in, f_out, args, timeout=60*5):
     """
     Benchmarks specific test for ebec
     :param ebe Path to ebe
@@ -106,7 +119,7 @@ def measure_ebec(ebe, f_in, f_out, args):
     :param f_out -out file
     :return touple of strings containing (run time, cpu usage, compilation precision)
     """
-    result = subprocess.Popen([f"./measure.sh \"{ebe} -in {f_in} -out {f_out} {args} -o /dev/null\""],
+    result = subprocess.Popen([f"./measure.sh \"{ebe} -in {f_in} -out {f_out} {args} -t {timeout} -o /dev/null\""],
                               shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result_stdout = result.communicate()[0].decode("utf-8")
     result_stderr = result.communicate()[1].decode("utf-8")
@@ -239,7 +252,7 @@ def get_ebei_tests(dir_path):
             tests.append((item, ebel_file, txt_files, extract_args(args_file)))
     return tests
 
-def run_ebec_tests(ebe, ebec_dir, iterations):
+def run_ebec_tests(ebe, ebec_dir, iterations, extra_args):
     """
     Benchmarks all ebec tests in ebe_dir
     :param ebe Path to ebe
@@ -253,7 +266,7 @@ def run_ebec_tests(ebe, ebec_dir, iterations):
         results[name] = {"times": [], "cpus": [], "precisions": []}
         log("Started.", "ebec:"+name, curr_num, len(tests))
         for _ in range(iterations):
-            mes = measure_ebec(ebe, f_in, f_out, args)
+            mes = measure_ebec(ebe, f_in, f_out, extra_args+" "+args)
             results[name]["times"].append(float(mes[0]))
             results[name]["cpus"].append(int(mes[1]))
             results[name]["precisions"].append(float(mes[2]))
@@ -300,34 +313,40 @@ if __name__ == "__main__":
     _only_c = False
     werror = True
     _iterations = 10
+    _extra_args = ""
 
     _i = 1
     while _i < len(sys.argv):
         if sys.argv[_i] == "-ebe":
-            if len(sys.argv) < _i+1:
+            if len(sys.argv) <= _i+1:
                 error("Missing value for -ebe option")
             _ebe_command = sys.argv[_i+1]
             _i += 1
         elif sys.argv[_i] == "-ebec":
-            if len(sys.argv) < _i+1:
+            if len(sys.argv) <= _i+1:
                 error("Missing value for -ebec option")
             _ebec_dir = sys.argv[_i+1]
             _i += 1
         elif sys.argv[_i] == "-ebei":
-            if len(sys.argv) < _i+1:
+            if len(sys.argv) <= _i+1:
                 error("Missing value for -ebei option")
             _ebei_dir = sys.argv[_i+1]
             _i += 1
         elif sys.argv[_i] == "-iter":
-            if len(sys.argv) < _i+1:
+            if len(sys.argv) <= _i+1:
                 error("Missing value for -iter option")
             try:
                 _iterations = int(sys.argv[_i+1])
             except Exception:
                 error("Incorrect value '{}' for -iter".format(sys.argv[_i+1]))
             _i += 1
+        elif sys.argv[_i] == "-args":
+            if len(sys.argv) <= _i+1:
+                error("Missing value for -args option")
+            _extra_args = sys.argv[_i+1]
+            _i += 1
         elif sys.argv[_i] == "-o":
-            if len(sys.argv) < _i+1:
+            if len(sys.argv) <= _i+1:
                 error("Missing value for -o option")
             _json_dir = sys.argv[_i+1]
             _i += 1
@@ -341,8 +360,8 @@ if __name__ == "__main__":
             error("Unknown option '{}'".format(sys.argv[_i]))
         _i += 1
 
-    log("Using:\n\t-ebec: {}\n\t-ebei: {}\n\t-ebe: {}\n\t-o: {}\n\t-iter: {}\n\t-i: {}\n\t-c: {}\n\t-Werror: {}".format(
-          _ebec_dir, _ebei_dir, _ebe_command, _json_dir, _iterations, _only_i, _only_c, werror))
+    log("Using:\n\t-ebec: {}\n\t-ebei: {}\n\t-ebe: {}\n\t-o: {}\n\t-iter: {}\n\t-args: {}\n\t-i: {}\n\t-c: {}\n\t-Werror: {}".format(
+          _ebec_dir, _ebei_dir, _ebe_command, _json_dir, _iterations, _extra_args, _only_i, _only_c, werror))
 
     _ebec_dir = os.path.normpath(_ebec_dir)
     _ebei_dir = os.path.normpath(_ebei_dir)
@@ -368,14 +387,15 @@ if __name__ == "__main__":
     _ebei_results = None
     # Running tests
     if not _only_i:
-        _ebec_results = run_ebec_tests(_ebe_command, _ebec_dir, _iterations)
+        _ebec_results = run_ebec_tests(_ebe_command, _ebec_dir, _iterations, _extra_args)
     if not _only_c:
         _ebei_results = run_ebei_tests(_ebe_command, _ebei_dir, _iterations)
 
     # Save results
     _results = {"benchmark": {
                     "version": __version__,
-                    "time:": int(datetime.now().timestamp())
+                    "time:": int(datetime.now().timestamp()),
+                    "args": _extra_args
                     },
                 "platform": get_platform_info(),
                 "ebe": get_ebe_info(_ebe_command),
