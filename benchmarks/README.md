@@ -25,6 +25,17 @@ If Ebe is not under `ebe` command then it needs to be linked using `-ebe <path>`
 ./benchmarks.py -i -ebe /usr/bin/ebe -ebei ../ebei_test/ -o ../results/
 ```
 
+## Plotting benchmarks
+
+Benchmark results (.json files) can be plotted and compared using the `plot_benchmarks.py` script. All its options can be seen running it with `-h` option.
+
+It can plot benchmarks in a form of bar plot or boxplot and save output to many different output formats based on specified output extention. 
+
+Example of plotting single benchmark results:
+```
+./plot_benchmarks.py ../results.json -bp -o results.png
+```
+
 ## Test structure
 
 Each test has to reside in its own folder within the ebei/ebec folder, where the name of the folder is then used as the name of the test. All tests can have one `*.args` file containing any additional program arguments (such as `-expr`...).
