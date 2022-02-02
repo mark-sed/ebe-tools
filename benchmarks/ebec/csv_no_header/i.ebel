@@ -1,0 +1,18 @@
+PASS Words
+  DEL 
+  DEL 
+  DEL 
+  LOOP 
+  DEL 
+  LOOP 
+  SWAP 1
+  LOOP 
+  DEL 
+  NOP 
+  NOP 
+  DEL 
+  DEL 
+  LOOP 
+  DEL 
+  DEL 
+  LOOP

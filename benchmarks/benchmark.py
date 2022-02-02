@@ -299,6 +299,9 @@ def run_ebei_tests(ebe, ebei_dir, iterations):
 # TODO: Add support for ebe_all (compilation + interpretation)
 # TODO: Save current PC information (to have RPI and PC results)
 # TODO: Add option to run just one specific test
+# TODO: Allow for multiple -ebec and -ebei
+# TODO: Allow for -o to take also the file name
+# TODO: Add test name (-name) read from the user into the json. If not used, then just use ebe version
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "-h":
         print_help()
@@ -379,7 +382,7 @@ if __name__ == "__main__":
     if not os.path.isfile(_ebe_command):
         # Call ebe as a command
         try:
-            subprocess.call([_ebe_command])
+            subprocess.Popen([_ebe_command], stdout=subprocess.PIPE)
         except FileNotFoundError:
             error("Ebe cannot be found as a command nor binary under '{}'".format(_ebe_command))
 

@@ -1,0 +1,22 @@
+# Markdown text
+
+__Test data in here__:
+* Bullet points
+* __Bold text__
+* Headings
+* _Italic text_
+* `Code`
+* Code block
+
+## Heading 2
+
+This is a `md.in` file or maybe the `txt.out`.
+
+Code block:
+```
+ebe -in md.in -out txt.out
+```
+
+### Heading 3
+
+_With italic text_ and a normal text.

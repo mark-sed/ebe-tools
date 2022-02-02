@@ -1,0 +1,8 @@
+PASS Words
+    PASS NUMBER Expression
+        RETURN NOP
+    PASS TEXT Expression
+        RETURN NOP
+    PASS DERIVED Expression
+        RETURN DEL
+    LOOP

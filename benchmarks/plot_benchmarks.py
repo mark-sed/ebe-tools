@@ -10,6 +10,7 @@ import pandas as pd
 import json
 import sys
 import statistics
+import re
 
 def error(msg):
     print("ERROR: "+msg+".", file=sys.stderr)
@@ -71,7 +72,7 @@ def boxplot(benchmark_json, save_path, no_platform_info):
     if ebec_data is not None:
         values = {}
         for k, v in ebec_data.items():
-            values[k] = v["times"]
+            values[re.sub("(.{10})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
         subp(ax1, row).boxplot(values.values())
         subp(ax1, row).set_xticklabels(values.keys())
         subp(ax1, row).set_xlabel("time [s]")
@@ -80,7 +81,7 @@ def boxplot(benchmark_json, save_path, no_platform_info):
     if ebei_data is not None:
         values = {}
         for k, v in ebei_data.items():
-            values[k] = v["times"]
+            values[re.sub("(.{10})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
         subp(ax1, row).boxplot(values.values())
         subp(ax1, row).set_xticklabels(values.keys())
         subp(ax1, row).set_xlabel("time [s]")
@@ -90,6 +91,7 @@ def boxplot(benchmark_json, save_path, no_platform_info):
     if not no_platform_info:
         plt.figtext(0.5, 0.02, get_plot_text(benchmark_json), horizontalalignment='center', color="gray")
     fig1.suptitle("Ebe "+benchmark_json["ebe"]["version"]+" benchmarks")
+    fig1.set_size_inches(12.8, 9.4)
     plt.savefig(save_path)
     plt.show()
 
@@ -144,6 +146,7 @@ def plot_single(benchmark_json, save_path, no_platform_info):
     if not no_platform_info:
         plt.figtext(0.5, 0.02, get_plot_text(benchmark_json), horizontalalignment='center', color="gray")
     fig1.suptitle("Ebe "+benchmark_json["ebe"]["version"]+" benchmarks")
+    fig1.set_size_inches(12.8, 9.4)
     plt.savefig(save_path)
     plt.show()
 
@@ -162,6 +165,8 @@ def load_json(path):
 # TODO: Add additional info under the graph, maybe even precision table
 # TODO: Add option to not print platform info
 # TODO: Dont print platform info for comparison (does not need it)
+# TODO: Option to plot precision and not time
+# TODO: Option for fig size
 if __name__ == "__main__":
     if len(sys.argv) == 1 or (len(sys.argv) > 1 and sys.argv[1] == '-h'):
         print_help()
