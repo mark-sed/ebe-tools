@@ -1,0 +1,60 @@
+PASS Words
+  NOP 
+  NOP 
+  LOOP 
+  NOP 
+  DEL 
+  SWAP 13
+  DEL 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+PASS Words
+  DEL 
+  DEL 
+  DEL 
+  DEL 
+  DEL 
+  NOP 
+  DEL 
+  DEL 
+  DEL 
+  SWAP 20
+  DEL 
+  DEL 
+  SWAP 11
+  SWAP 20
+  SWAP 22
+  DEL 
+  DEL 
+  DEL 
+  NOP 
+  NOP 
+  LOOP 
+  NOP 
+  NOP 
+  NOP 
+PASS Words
+  DEL 
+  DEL 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  NOP 
+  LOOP 
+  NOP 
+  NOP 
+PASS Words
+  NOP 
+  NOP 
+  SWAP 15
+  DEL 
+  SWAP 15
+  NOP 
+  NOP 
+  NOP 
