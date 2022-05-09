@@ -31,10 +31,10 @@ def print_help():
     No arguments runs all benchmarks.
     This script requires sudo privileges.
     -ebe <path>  Path to Ebe.
-    -o           Path to a directory where to save results.
+    -o <path>    Path to a directory where to save results.
     -i           Run only interpreter benchmarks.
     -c           Run only compiler benchmarks.
-    -t           Name of test to run
+    -t <name>    Runs only test matching argument name. Can be used multiple times.
     -ebec <path> Path to folder containing ebec tests.
     -ebei <path> Path to folder containing ebei tests.
     -iter <num>  Number of iteration to be done for each test.
@@ -91,7 +91,6 @@ def get_cpu_model():
     Attempts to get cpu model name
     :return Model name or empty string
     """
-    
     result = subprocess.Popen(["lscpu | sed -nr '/Model name/ s/.*:\s*(.*) @ .*/\\1/p'"],
                               shell=True, stdout=subprocess.PIPE)
     result_stdout = result.communicate()[0].decode("utf-8")
@@ -307,13 +306,7 @@ def run_ebei_tests(ebe, ebei_dir, iterations, tests):
         curr_num += 1
     return results
 
-
-# TODO: Add support for ebe_all (compilation + interpretation)
-# TODO: Save current PC information (to have RPI and PC results)
-# TODO: Add option to run just one specific test
-# TODO: Allow for multiple -ebec and -ebei
-# TODO: Add test name (-name) read from the user into the json. If not used, then just use ebe version
-# TODO: Run -args on empty/small file to find out if the arguments are correct
+# Entry point, use -h to see usage information
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "-h":
         print_help()

@@ -6,6 +6,7 @@ __author__ = "Marek Sedlacek"
 __date__ = "January 2022"
 
 import matplotlib.pyplot as plt
+import matplotlib
 import pandas as pd
 import json
 import sys
@@ -67,24 +68,26 @@ def boxplot(benchmark_json, save_path, no_platform_info):
     # Plotting
     fig1, ax1 = plt.subplots(graph_rows, graph_columns)
 
-    plt.subplots_adjust(bottom=0.1 if no_platform_info else 0.3, hspace=0.6)
+    plt.subplots_adjust(bottom=0.13 if no_platform_info else 0.3, hspace=0.6)
     row = 0
     if ebec_data is not None:
         values = {}
         for k, v in ebec_data.items():
-            values[re.sub("(.{10})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
+            values[re.sub("(.{7})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
         subp(ax1, row).boxplot(values.values())
         subp(ax1, row).set_xticklabels(values.keys())
-        subp(ax1, row).set_xlabel("time [s]")
+        subp(ax1, row).set_ylabel("time [s]")
+        #subp(ax1, row).set_xlabel("population size")
         subp(ax1, row).set_title("Compilation")
         row += 1 
     if ebei_data is not None:
         values = {}
         for k, v in ebei_data.items():
-            values[re.sub("(.{10})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
+            values[re.sub("(.{7})", "\\1\n", k, 0, re.DOTALL)] = v["times"]
         subp(ax1, row).boxplot(values.values())
         subp(ax1, row).set_xticklabels(values.keys())
-        subp(ax1, row).set_xlabel("time [s]")
+        subp(ax1, row).set_ylabel("time [s]")
+        #subp(ax1, row).set_xlabel("population size")
         subp(ax1, row).set_title("Interpretation")
         row += 1
     # Info text
@@ -161,12 +164,6 @@ def load_json(path):
         parsed = json.load(json_f)
     return parsed
 
-# TODO: Add precision to plots
-# TODO: Add additional info under the graph, maybe even precision table
-# TODO: Add option to not print platform info
-# TODO: Dont print platform info for comparison (does not need it)
-# TODO: Option to plot precision and not time
-# TODO: Option for fig size
 if __name__ == "__main__":
     if len(sys.argv) == 1 or (len(sys.argv) > 1 and sys.argv[1] == '-h'):
         print_help()
@@ -174,6 +171,9 @@ if __name__ == "__main__":
     _no_platform_info = False
     _graph_output = "benchmark_graph.png"
     _box_plot = False
+
+    font = {'size'   : 16}
+    matplotlib.rc('font', **font)
 
     _i = 1
     while _i < len(sys.argv):
@@ -203,6 +203,4 @@ if __name__ == "__main__":
             boxplot(_results[0], _graph_output, _no_platform_info)
         else:
             plot_single(_results[0], _graph_output, _no_platform_info)
-    else:
-        # Double comparison plot
-        pass
+
